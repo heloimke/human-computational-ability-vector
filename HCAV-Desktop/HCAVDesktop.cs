@@ -8,6 +8,8 @@ public class HCAVDesktop : Game
 {
     private GraphicsDeviceManager _graphics;
     private SpriteBatch _spriteBatch;
+    
+    private StimuliManager _stimuli;
 
     public HCAVDesktop()
     {

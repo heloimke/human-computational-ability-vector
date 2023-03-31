@@ -5,7 +5,7 @@ using Microsoft.Xna.Framework.Audio;
 
 namespace HCAV_Desktop;
 
-public class gStimuli : Stimuli<Texture2D>
+public class gStimuli : Stimuli<Texture2D>, Drawable
 {
     public readonly Vector2 Origin;
 

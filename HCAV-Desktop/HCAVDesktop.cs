@@ -8,8 +8,8 @@ public class HCAVDesktop : Game
 {
     private GraphicsDeviceManager _graphics;
     private SpriteBatch _spriteBatch;
-    
-    private StimuliManager _stimuli;
+
+    public Session RunningSession;
 
     public HCAVDesktop()
     {
@@ -20,12 +20,23 @@ public class HCAVDesktop : Game
 
     protected override void Initialize()
     {
+        _graphics.PreferredBackBufferWidth = GraphicsDevice.DisplayMode.Width;
+        _graphics.PreferredBackBufferHeight = GraphicsDevice.DisplayMode.Height;
+        _graphics.IsFullScreen = true;
+        _graphics.ApplyChanges();
+
+        ScreenSpace.Setup(_graphics);
+
         base.Initialize();
     }
 
     protected override void LoadContent()
     {
         _spriteBatch = new SpriteBatch(GraphicsDevice);
+
+        MenuStimuli.BuildSet(Content);
+
+        RunningSession = new MainMenu();
     }
 
     protected override void Update(GameTime gameTime)
@@ -33,12 +44,18 @@ public class HCAVDesktop : Game
         if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed || Keyboard.GetState().IsKeyDown(Keys.Escape))
             Exit();
 
+        RunningSession = RunningSession.Update(gameTime);
+
         base.Update(gameTime);
     }
 
     protected override void Draw(GameTime gameTime)
     {
-        GraphicsDevice.Clear(Color.CornflowerBlue);
+        GraphicsDevice.Clear(Color.MidnightBlue);
+
+        _spriteBatch.Begin();
+        RunningSession.DrawScreen(ref _spriteBatch, gameTime);
+        _spriteBatch.End();
 
         base.Draw(gameTime);
     }

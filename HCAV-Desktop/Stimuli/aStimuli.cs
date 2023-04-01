@@ -5,8 +5,10 @@ using Microsoft.Xna.Framework.Audio;
 
 namespace HCAV_Desktop;
 
-public class aStimuli : Stimuli<SoundEffect>
+public class aStimuli : Stimuli<SoundEffect>, Playable, HasSoundEffect
 {
+    public SoundEffect GetSound() => this.content;
+
     private SoundEffectInstance _instance;
     public SoundEffectInstance instance => _instance;
     public SoundEffectInstance instance_safe {

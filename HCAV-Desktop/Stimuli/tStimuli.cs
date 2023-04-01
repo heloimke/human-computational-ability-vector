@@ -33,6 +33,8 @@ public class tStimuli : Stimuli<SpriteFont>
         this.containerType = type;
     }
 
+    public void Draw(ref SpriteBatch batch, string text, Vector2 position) => Draw(ref batch, text, position, Vector2.One, 0, Color.White, SpriteEffects.None, 0);
+
     public void Draw(ref SpriteBatch batch, string text, Vector2 origin, Vector2 position, Vector2 scale, float rotation, Color color, SpriteEffects effect, float layerDepth) =>
         batch.DrawString(this.font, text, position, color, rotation, origin, scale, effect, layerDepth);
     public void Draw(ref SpriteBatch batch, string text, Vector2 position, Vector2 scale, float rotation, Color color, SpriteEffects effect, float layerDepth) =>

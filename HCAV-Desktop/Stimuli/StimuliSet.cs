@@ -9,7 +9,6 @@ namespace HCAV_Desktop;
 
 public class StimuliSet
 {
-
     public readonly string Name;
 
     private List<gStimuli> _gStim;

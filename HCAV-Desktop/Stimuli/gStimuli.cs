@@ -14,7 +14,7 @@ public class gStimuli : Stimuli<Texture2D>, Drawable
 
     public void StreamPNG(System.IO.Stream stream) => this.content.SaveAsPng(stream, Width, Height);
 
-    public gStimuli(ContentManager ContainingLibrary, string AssetName, string StimuliCode, Vector2? Origin, bool AutoLoad = true) : base(ContainingLibrary, StimulusType.Visual, AssetName, StimuliCode)
+    public gStimuli(ContentManager ContainingLibrary, string AssetName, string StimuliCode, Vector2? Origin = null, bool AutoLoad = true) : base(ContainingLibrary, StimulusType.Visual, AssetName, StimuliCode)
     {
         this.Origin = Origin ?? Vector2.Zero;
     }

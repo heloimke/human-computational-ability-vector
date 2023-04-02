@@ -14,15 +14,17 @@ public static class MenuStimuli
     {
         MenuResources = new StimuliSet(
             "Menu Stimuli",
-            new List<gStimuli>(),
+            new List<gStimuli> {
+                new gStimuli(manager, "Placeholders/testclickablegstim", "Test Button")
+            },
             new List<aStimuli>(),
             new List<tStimuli> {
-                new tStimuli(manager, "Fonts/latoregular",          "Header"),
-                new tStimuli(manager, "Fonts/latolight",            "Header Light"),
-                new tStimuli(manager, "Fonts/latoblack",            "Header Thick"),
-                new tStimuli(manager, "Fonts/quicksandmedium",      "Text"),
-                new tStimuli(manager, "Fonts/quicksandlight",       "Text Light"),
-                new tStimuli(manager, "Fonts/quicksandbold",        "Text Thick")
+                new tStimuli(manager, "Fonts/latoregular",     "Header"),
+                new tStimuli(manager, "Fonts/latolight",       "Header Light"),
+                new tStimuli(manager, "Fonts/latoblack",       "Header Thick"),
+                new tStimuli(manager, "Fonts/quicksandmedium", "Text"),
+                new tStimuli(manager, "Fonts/quicksandlight",  "Text Light"),
+                new tStimuli(manager, "Fonts/quicksandbold",   "Text Thick")
             },
             new List<DictionaryStimuli>()
         );

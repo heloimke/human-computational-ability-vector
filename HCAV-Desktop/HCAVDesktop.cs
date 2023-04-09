@@ -20,9 +20,13 @@ public class HCAVDesktop : Game
 
     protected override void Initialize()
     {
-        _graphics.PreferredBackBufferWidth = GraphicsDevice.DisplayMode.Width;
-        _graphics.PreferredBackBufferHeight = GraphicsDevice.DisplayMode.Height;
-        _graphics.IsFullScreen = true;
+        _graphics.PreferredBackBufferWidth = 1280;//GraphicsDevice.DisplayMode.Width;
+        _graphics.PreferredBackBufferHeight = 720;//GraphicsDevice.DisplayMode.Height;
+        _graphics.IsFullScreen = false;
+
+        _graphics.SynchronizeWithVerticalRetrace = false;
+        IsFixedTimeStep = true;
+        TargetElapsedTime = new System.TimeSpan(10 * 1000); //1ms
         _graphics.ApplyChanges();
 
         ScreenSpace.Setup(_graphics);

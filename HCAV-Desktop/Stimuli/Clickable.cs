@@ -75,7 +75,7 @@ public class Clickable
         this.relativeClickState = MouseRelativeClickState.Nothing;
     }
 
-    public Clickable(string ShortCode, Vector2 Location, gStimuli defaultGS, bool ExamSpace = false)
+    public Clickable(string ShortCode, Vector2 Location, gStimuli defaultGS, bool ExamSpace = true)
     {
         this.ShortCode = ShortCode;
 
@@ -126,7 +126,7 @@ public class Clickable
             (int)(transformedPosition.Y - (transformedHeight / 2f)), 
 
             (int)transformedWidth, (int)transformedHeight
-        ));
+        ), (relativeState == MouseRelativeState.Inside) ? Color.LightGray : Color.White); //NOTE: Should this be disable-able? - It's overridable.
     }
 
     //NOTE: When writing docs - include tips to order states like I have, most likely states first.

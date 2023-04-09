@@ -24,6 +24,8 @@ public static class ScreenSpace
     public static float AspectRatio;
     public static float SizeRatio;
 
+    public static bool Landscape => WidthLonger;
+
     public const float IdealSquare = 1080f;
 
     public static void Setup(GraphicsDeviceManager manager)

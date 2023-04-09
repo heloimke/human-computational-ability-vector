@@ -17,23 +17,28 @@ public class MainMenu : Session
     Clickable testButton;
 
     string ClickExposureExample = "Clickable State Exposure Location";
+    
+    int CurrentPosition = 0;
+    string MouseString => $"Mouse scrolled {CurrentPosition} since beginning.";
 
     public MainMenu()
     {
         Title   = MenuStimuli.MenuResources.FindFontInstance("Header Thick");
         Option  = MenuStimuli.MenuResources.FindFontInstance("Text Light");
 
-        testButton = new Clickable("Clickable Test", new Vector2(0, -0.15f), 0.25f, 0.25f, MenuStimuli.MenuResources.FindGraphicalStimulus("Test Button"));
+        testButton = new Clickable("Clickable Test", new Vector2(0, -0.1f), 0.4f, 0.4f, MenuStimuli.MenuResources.FindGraphicalStimulus("Test Button"), ExamSpace: false);
         testButton.ClickInitiated += (Clickable clicked) => ClickExposureExample = "Button Clicked!";
         testButton.ClickEnded += (Clickable clicked, TimeSpan time) => ClickExposureExample = $"Button let go after {time.TotalMilliseconds:F1}ms.";
     }
 
     public void DrawScreen(ref SpriteBatch batch, GameTime gameTime)
     {
-        Title.Draw(ref batch, "Human Computational Ability Vector", FullSpace(0, 0.75f));
-        Option.Draw(ref batch, "Screenspace Transformation Test.", FullSpace(0, 0.375f));
+        Title.Draw(ref batch, "Human Computational Ability Vector", FullSpace(0, 0.85f), scale: SizeRatio * 0.6f * (Landscape ? (AspectRatio) : 1));
+        Option.Draw(ref batch, "Screenspace Transformation Test.", FullSpace(0, 0.65f), scale: SizeRatio * 0.8f);
+        Option.Draw(ref batch, $"Time Since Last Update: {gameTime.ElapsedGameTime.TotalMilliseconds}ms", FullSpace(0, 0.5f), scale: SizeRatio * 0.8f);
         testButton.Draw(ref batch);
-        Option.Draw(ref batch, ClickExposureExample, FullSpace(0, -0.625f));
+        Option.Draw(ref batch, ClickExposureExample, FullSpace(0, 0.35f), scale: SizeRatio * 0.8f);
+        Option.Draw(ref batch, MouseString, FullSpace(0, 0.2f), scale: SizeRatio * 0.8f);
     }
 
     public void ExitBehaviour()
@@ -49,7 +54,8 @@ public class MainMenu : Session
     public Session Update(GameTime gameTime)
     {
         MouseState mouse = Mouse.GetState();
-        testButton.Update(gameTime, FromFullSpace(mouse.X, mouse.Y), mouse.LeftButton == ButtonState.Pressed);
+        CurrentPosition = mouse.ScrollWheelValue;
+        testButton.Update(gameTime, FromFullSpace(mouse.X, mouse.Y), mouse.LeftButton == ButtonState.Pressed || Keyboard.GetState().IsKeyDown(Keys.Space));
         return this;
     }
 }

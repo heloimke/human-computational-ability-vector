@@ -104,6 +104,34 @@
 /processorParam:TextureFormat=Compressed
 /build:Fonts/quicksandsemibold.spritefont
 
+#begin Fonts/ubuntumono.spritefont
+/importer:FontDescriptionImporter
+/processor:FontDescriptionProcessor
+/processorParam:PremultiplyAlpha=True
+/processorParam:TextureFormat=Compressed
+/build:Fonts/ubuntumono.spritefont
+
+#begin Fonts/ubuntumonobold.spritefont
+/importer:FontDescriptionImporter
+/processor:FontDescriptionProcessor
+/processorParam:PremultiplyAlpha=True
+/processorParam:TextureFormat=Compressed
+/build:Fonts/ubuntumonobold.spritefont
+
+#begin Fonts/ubuntumonobolditalic.spritefont
+/importer:FontDescriptionImporter
+/processor:FontDescriptionProcessor
+/processorParam:PremultiplyAlpha=True
+/processorParam:TextureFormat=Compressed
+/build:Fonts/ubuntumonobolditalic.spritefont
+
+#begin Fonts/ubuntumonoitalic.spritefont
+/importer:FontDescriptionImporter
+/processor:FontDescriptionProcessor
+/processorParam:PremultiplyAlpha=True
+/processorParam:TextureFormat=Compressed
+/build:Fonts/ubuntumonoitalic.spritefont
+
 #begin Placeholders/hcavplaceholdergstimforclicable.bmp
 /importer:TextureImporter
 /processor:TextureProcessor

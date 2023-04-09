@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
@@ -61,7 +62,12 @@ public class InputBox
     public float BoxLeftCapWidth;
     public float BoxRightCapWidth;
 
-    public tStimuli Font;
+    public bool LeftJustify;
+
+    public tStimuli Font                    { get; protected set; }
+    public float FontRelativeHeight         { get; protected set; }
+    public Vector2 TestStringMeasurement    { get; protected set; }
+    public const string MeasurementString = "`Test|y@%^&*,";
 
     public float Width;
     public float Height;
@@ -70,12 +76,20 @@ public class InputBox
     public Vector2 Location;
     public bool ExamSpace;
 
+    public Color ActiveColor;
+    public Color HoverColor;
+    public Color NormalColor;
+
     public TimeSpan activeTime      { get; protected set; }
     public TimeSpan idleTime        { get; protected set; }
     public TimeSpan typingTime      { get; protected set; }
     public TimeSpan deletingTime    { get; protected set; }
     public TimeSpan movingTime      { get; protected set; }
 
+    private bool PreviousMouseInteractionState;
+    private KeyboardState PreviousKeyboardState;
+
+    public bool MouseOver           { get; protected set; }
     public bool Active              { get; protected set; }
     public InputState State         { get; protected set; }
 
@@ -83,14 +97,17 @@ public class InputBox
     public int Position { get; protected set; }
 
     public InputBox(
-        string ShortCode, tStimuli Font, 
+        string ShortCode, tStimuli Font, float FontRelativeHeight,
         Drawable BoxLeftCap, Drawable BoxRightCap, Drawable BoxMiddle, 
         float BoxLeftCapWidth, float BoxRightCapWidth, 
-        float Width, float Height, Vector2 Location, bool ExamSpace = true
+        float Width, float Height, Vector2 Location, bool ExamSpace = true, bool LeftJustify = true, 
+        Color? ActiveColor = null, Color? HoverColor = null, Color? NormalColor = null
     ) {
         this.ShortCode = ShortCode;
 
-        this.Font = Font;
+        this.LeftJustify        = LeftJustify;
+        this.Font               = Font;
+        this.FontRelativeHeight = FontRelativeHeight;
 
         this.BoxMiddle          = BoxMiddle;
         this.BoxLeftCap         = BoxLeftCap;
@@ -103,6 +120,9 @@ public class InputBox
         this.Location   = Location;
         this.ExamSpace  = ExamSpace;
 
+        this.ActiveColor = ActiveColor  ?? new Color(210, 210, 230);
+        this.HoverColor  = HoverColor   ?? new Color(230, 230, 240);
+        this.NormalColor = NormalColor  ?? Color.White;
 
         activeTime   = new TimeSpan(0);
         idleTime     = new TimeSpan(0);
@@ -110,10 +130,16 @@ public class InputBox
         deletingTime = new TimeSpan(0);
         movingTime   = new TimeSpan(0);
 
-        Active = false;
-        State  = InputState.Inactive;
+        PreviousMouseInteractionState   = false;
+        PreviousKeyboardState           = new KeyboardState();
 
-        Text     = "";
+        MouseOver   = false;
+        Active      = false;
+        State       = InputState.Inactive;
+
+        TestStringMeasurement = this.Font.content.MeasureString(MeasurementString);
+
+        Text     = "Test input text `#@1 except too long";
         Position = 0;
     }
 
@@ -148,31 +174,98 @@ public class InputBox
         float transformedLeftCapWidth  = BoxLeftCapWidth  * SizeRatio * (ExamSpace ? IdealSquare : IdealSquare / 2f);
         float transformedRightCapWidth = BoxRightCapWidth * SizeRatio * (ExamSpace ? IdealSquare : IdealSquare / 2f);
 
-        BoxLeftCap.Draw(ref batch, new Rectangle(
-            (int)(transformedPosition.X - (transformedWidth  / 2f)), 
-            (int)(transformedPosition.Y - (transformedHeight / 2f)), 
+        int MiddleWidth = (int)Math.Ceiling(transformedWidth - transformedLeftCapWidth - transformedRightCapWidth);
 
-            (int)(transformedLeftCapWidth), (int)transformedHeight
-        ), (Active) ? Color.LightGray : Color.White); //NOTE: Should this be disable-able? - It's overridable.
+        BoxLeftCap.Draw(ref batch, new Rectangle(
+                (int)(transformedPosition.X - (transformedWidth  / 2f)), 
+                (int)(transformedPosition.Y - (transformedHeight / 2f)), 
+
+                (int)(transformedLeftCapWidth), (int)transformedHeight
+            ), 
+            (Active) ? ActiveColor : (MouseOver) ? HoverColor : NormalColor
+        ); //NOTE: Should this be disable-able? - It's overridable.
         
         BoxMiddle.Draw(ref batch, new Rectangle(
-            (int)(transformedPosition.X - (transformedWidth  / 2f) + transformedLeftCapWidth), 
-            (int)(transformedPosition.Y - (transformedHeight / 2f)), 
+                (int)(transformedPosition.X - (transformedWidth  / 2f) + transformedLeftCapWidth), 
+                (int)(transformedPosition.Y - (transformedHeight / 2f)), 
 
-            (int)Math.Ceiling(transformedWidth - transformedLeftCapWidth - transformedRightCapWidth), (int)transformedHeight
-        ), (Active) ? Color.LightGray : Color.White); //NOTE: Should this be disable-able? - It's overridable.
+                MiddleWidth, (int)transformedHeight
+            ), 
+            (Active) ? ActiveColor : (MouseOver) ? HoverColor : NormalColor
+        ); //NOTE: Should this be disable-able? - It's overridable.
         
         BoxRightCap.Draw(ref batch, new Rectangle(
-            (int)(transformedPosition.X + (transformedWidth  / 2f) - transformedRightCapWidth), 
-            (int)(transformedPosition.Y - (transformedHeight / 2f)), 
+                (int)(transformedPosition.X + (transformedWidth  / 2f) - transformedRightCapWidth), 
+                (int)(transformedPosition.Y - (transformedHeight / 2f)), 
 
-            (int)(transformedRightCapWidth), (int)transformedHeight
-        ), (Active) ? Color.LightGray : Color.White); //NOTE: Should this be disable-able? - It's overridable.
+                (int)(transformedRightCapWidth), (int)transformedHeight
+            ), 
+            (Active) ? ActiveColor : (MouseOver) ? HoverColor : NormalColor
+        ); //NOTE: Should this be disable-able? - It's overridable.
+
+        Vector2 TextMeasurement = this.Font.content.MeasureString(Text);
+        float CalculatedTextWidth = TextMeasurement.X * FontRelativeHeight * (transformedHeight / TestStringMeasurement.Y);
+        string Buffer = Text;
+        if(CalculatedTextWidth > MiddleWidth)
+        {
+            int AcceptableCharacters = (int)Math.Floor(((MiddleWidth / CalculatedTextWidth) * Text.Length));
+            Buffer = "..." + Text.Substring(Text.Length - AcceptableCharacters + 3, AcceptableCharacters - 3);
+            TextMeasurement = this.Font.content.MeasureString(Buffer);
+            CalculatedTextWidth = (TextMeasurement.X * FontRelativeHeight * (transformedHeight / TestStringMeasurement.Y));
+        }
+        
+        //TODO: Calculate Shift as well ^ for cursor position.
+
+        Font.Draw(ref batch, Buffer, new Vector2(
+                (int)(transformedPosition.X + (LeftJustify ? transformedLeftCapWidth - ((transformedWidth - CalculatedTextWidth) / 2f)  : 0)), 
+                (int)(transformedPosition.Y)
+            ),
+            scale: FontRelativeHeight * (transformedHeight / TestStringMeasurement.Y)
+        );
+    }
+
+    public virtual void Activate()
+    {
+        Active = true;
+
+        //TODO: Signals.
+        //NOTE: Remember handle already activated case!
+    }
+
+    public virtual void Deactivate()
+    {
+        Active = false;
+
+        //TODO: Signals.
+        //NOTE: Remember handle already deactivated case!
     }
 
     //NOTE: When writing docs - include tips to order states like I have, most likely states first.
-    public virtual void Update(GameTime time, Vector2 relativeLocation, bool ClickInteraction)
+    public virtual void Update(GameTime time, Vector2 relativeLocation, bool ClickInteraction, bool ClearInteraction)
     {
+        MouseOver = CalculateIntersection(relativeLocation);
 
+        //Only interested in click down - only down if previously up.
+        bool clickDown = (PreviousMouseInteractionState) ? false : ClickInteraction;
+        PreviousMouseInteractionState = ClickInteraction;
+        
+        if(ClickInteraction)
+        {
+            if(MouseOver) Activate();
+            else Deactivate();
+        }
+
+        if(!Active) return; //No more processing if inactive...
+
+        KeyboardState nextState = Keyboard.GetState();
+        Keys[] keyPresses = nextState.KeyDelta(PreviousKeyboardState);
+        PreviousKeyboardState = nextState;
+        //We don't need to keep the previous state, assign [previous = next] up here to stay concice.
+
+        //TODO: Implement all keyboard interaction behaviours + Signals.
+        //Very basic behaviour placeholder
+        char[] additions = keyPresses.KeyChars(nextState.IsKeyDown(Keys.LeftShift) || nextState.IsKeyDown(Keys.RightShift), nextState.CapsLock);
+        foreach(char c in additions) Text += c; //If you're pressing two keys at a time I don't think you could assume an intended order XD
+        if(keyPresses.Contains(Keys.Back)) Text = Text.Remove(Text.Length - 1);
     }
 }

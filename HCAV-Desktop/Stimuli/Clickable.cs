@@ -53,13 +53,20 @@ public class Clickable
     public Vector2 Location;
     public bool ExamSpace;
 
+    public Color ActiveColor;
+    public Color HoverColor;
+    public Color NormalColor;
+
     public TimeSpan hoverTime                           { get; protected set; }
     public TimeSpan clickTime                           { get; protected set; }
     public MouseRelativeState relativeState             { get; protected set; }
     public MouseRelativeClickState relativeClickState   { get; protected set; }
 
-    public Clickable(string ShortCode, Vector2 Location, float width, float height, Drawable defaultGS, bool ExamSpace = false)
-    {
+    public Clickable(
+        string ShortCode, 
+        Vector2 Location, float width, float height, Drawable defaultGS, bool ExamSpace = false, 
+        Color? ActiveColor = null, Color? HoverColor = null, Color? NormalColor = null
+    ) {
         this.ShortCode = ShortCode;
 
         this.defaultGS  = defaultGS;
@@ -69,6 +76,10 @@ public class Clickable
 
         this.Location   = Location;
         this.ExamSpace  = ExamSpace;
+
+        this.ActiveColor = ActiveColor  ?? new Color(210, 210, 230);
+        this.HoverColor  = HoverColor   ?? new Color(230, 230, 240);
+        this.NormalColor = NormalColor  ?? Color.White;
 
         this.hoverTime          = new TimeSpan(0);
         this.relativeState      = MouseRelativeState.Outside;
@@ -87,6 +98,10 @@ public class Clickable
 
         this.Location   = Location;
         this.ExamSpace  = ExamSpace;
+
+        this.ActiveColor = new Color(210, 210, 230);
+        this.HoverColor  = new Color(230, 230, 240);
+        this.NormalColor = Color.White;
 
         this.hoverTime          = new TimeSpan(0);
         this.relativeState      = MouseRelativeState.Outside;
@@ -126,7 +141,7 @@ public class Clickable
             (int)(transformedPosition.Y - (transformedHeight / 2f)), 
 
             (int)transformedWidth, (int)transformedHeight
-        ), (relativeState == MouseRelativeState.Inside) ? Color.LightGray : Color.White); //NOTE: Should this be disable-able? - It's overridable.
+        ), (relativeState != MouseRelativeState.Inside) ? NormalColor : (relativeClickState == MouseRelativeClickState.Held) ? ActiveColor : HoverColor); //NOTE: Should this be disable-able? - It's overridable.
     }
 
     //NOTE: When writing docs - include tips to order states like I have, most likely states first.

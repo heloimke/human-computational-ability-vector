@@ -15,7 +15,10 @@ public static class MenuStimuli
         MenuResources = new StimuliSet(
             "Menu Stimuli",
             new List<gStimuli> {
-                new gStimuli(manager, "Placeholders/testclickablegstim", "Test Button")
+                new gStimuli(manager, "Placeholders/testclickablegstim", "Test Button"),
+                new gStimuli(manager, "Placeholders/testxtboxleft",     "Testxt Box Left Cap"),
+                new gStimuli(manager, "Placeholders/testxtboxright",    "Testxt Box Right Cap"),
+                new gStimuli(manager, "Placeholders/testxtboxmiddle",   "Testxt Box Middle")
             },
             new List<aStimuli>(),
             new List<tStimuli> {

@@ -9,22 +9,22 @@ namespace HCAV_Desktop;
 
 public class Clickable
 {
-    public enum MouseRelativeState
+    public enum MouseRelativeState : byte
     {
-        Outside,
-        Entering,
-        Inside,
-        Leaving
+        Outside = 0x01,
+        Entering = 0x02,
+        Inside = 0x04,
+        Leaving = 0x08
     }
 
-    public enum MouseRelativeClickState
+    public enum MouseRelativeClickState : byte
     {
-        Nothing,
-        Clicking,
-        Held,
-        Lifting,
+        Nothing = 0x01,
+        Clicking = 0x02,
+        Held = 0x04,
+        Lifting = 0x08,
 
-        EnteredHeld
+        EnteredHeld = 0xF0
     }
 
     public delegate void ClickableEvent(Clickable sender);

@@ -22,6 +22,8 @@ public class InputBox
     public delegate void InputSimpleEvent(InputBox sender);
     public delegate void InputSimpleTimedEvent(InputBox sender, TimeSpan duration);
 
+    public delegate void InputCommandEvent(InputBox sender, char code, bool ctrl = true, bool alt = false);
+
     public delegate void InputPositionalEvent(InputBox sender, int position);
     public delegate void InputCharacterEvent(InputBox sender, int position, char character);
     public delegate void InputCharactersEvent(InputBox sender, int start, int stop, char[] characters);
@@ -32,6 +34,8 @@ public class InputBox
     public event InputSimpleEvent ClearedInput;
     
     public event InputCharacterEvent InputCharacter;
+
+    public event InputCommandEvent CommandSent;
 
     public event InputPositionalEvent MovedCursor;
     public event InputCharacterEvent DeletedCharacter;
@@ -66,8 +70,18 @@ public class InputBox
 
     public Drawable Cursor;
     public float CursorWidth;
+
     public TimeSpan CursorFlickerCycle;
-    //TODO: Make flicker colour calculation helper utility.
+    public Color CursorColor { get; protected set; }
+    public void UpdateCursorColor(TimeSpan elapsedTime)
+    {
+        //Map time modulo to [-1 -> 1] where 0 is "peak"
+        float phase = (elapsedTime.Ticks % (CursorFlickerCycle.Ticks * 2)) / (float)(CursorFlickerCycle.Ticks) - 1;
+        //Map phase to [0-255] where squared distance from phase peak is distance from 255.
+        int brightness = (int)Math.Floor(255 * (1 - Math.Abs(phase * phase)));
+        //Set RGBA to same value to vary luminosity and opacity without shifting Hue.
+        CursorColor = new Color(brightness, brightness, brightness, brightness);
+    }
 
     public tStimuli Font                    { get; protected set; }
     public float FontRelativeHeight         { get; protected set; }
@@ -218,7 +232,7 @@ public class InputBox
             (Active) ? ActiveColor : (MouseOver) ? HoverColor : NormalColor
         ); //NOTE: Should this be disable-able? - It's overridable.
 
-        //TODO: Allow right justification and precompute justification and buffer ?= placeholder here.
+        //TODO: Allow right justification and precompute justification and buffer ?= placeholder here.o
 
         Vector2 TextMeasurement = this.Font.content.MeasureString(Text);
         float CalculatedTextWidth = TextMeasurement.X * FontRelativeHeight * (transformedHeight / TestStringMeasurement.Y);
@@ -247,7 +261,7 @@ public class InputBox
 
                 (int)(transformedCursorWidth), (int)(transformedHeight * FontRelativeHeight)
             ), 
-            Color.White //TODO: Make flicker.
+            CursorColor
         ); //NOTE: Should this be disable-able? - It's overridable.
     }
 
@@ -270,17 +284,21 @@ public class InputBox
     //NOTE: When writing docs - include tips to order states like I have, most likely states first.
     public virtual void Update(GameTime time, Vector2 relativeLocation, bool ClickInteraction, bool ClearInteraction)
     {
+        UpdateCursorColor(time.TotalGameTime); //TODO: Only when not typing. - i.e. use idle time.
         MouseOver = CalculateIntersection(relativeLocation);
 
         //Only interested in click down - only down if previously up.
         bool clickDown = (PreviousMouseInteractionState) ? false : ClickInteraction;
         PreviousMouseInteractionState = ClickInteraction;
         
-        if(ClickInteraction)
+        if(clickDown)
         {
             if(MouseOver) Activate();
             else Deactivate();
         }
+
+        //TODO: Signal clear.
+        if(ClearInteraction) Text = "";
 
         if(!Active) return; //No more processing if inactive...
 
@@ -291,8 +309,35 @@ public class InputBox
 
         //TODO: Implement all keyboard interaction behaviours + Signals.
         //Very basic behaviour placeholder
-        char[] additions = keyPresses.KeyChars(nextState.IsKeyDown(Keys.LeftShift) || nextState.IsKeyDown(Keys.RightShift), nextState.CapsLock);
-        foreach(char c in additions) Text += c; //If you're pressing two keys at a time I don't think you could assume an intended order XD
-        if(keyPresses.Contains(Keys.Back)) Text = Text.Remove(Text.Length - 1);
+        char[] characters = keyPresses.KeyChars(nextState.IsKeyDown(Keys.LeftShift) || nextState.IsKeyDown(Keys.RightShift), nextState.CapsLock);
+
+        if(nextState.IsKeyDown(Keys.LeftControl) || nextState.IsKeyDown(Keys.RightControl))
+        {
+            if(nextState.IsKeyDown(Keys.LeftAlt) || nextState.IsKeyDown(Keys.RightAlt))
+            {
+                if(keyPresses.Contains(Keys.Back))
+                {
+                    //TODO Signals.
+                    Text = ""; //Delete everything.
+                }
+            }
+            else
+            {
+                if(keyPresses.Contains(Keys.Back))
+                {
+                    //TODO Signals.
+
+                    Text = Text.Remove(Text.Length - 1);               //Remove at least one char, in case of special char i.e. [, (, =, etc.
+                    Text = Text.TrimEnd();                             //Seek back to previous block.
+                    Text = Text.TrimEnd(Extensions.TrimSeekCtrlList);  //Remove all characters considered "content" 
+                }
+            }
+        }
+        else
+        {
+            foreach(char c in characters) Text += c;    //If you're pressing two keys at a time I don't think you could assume an intended order XD
+            if(keyPresses.Contains(Keys.Back))          //We can add letters before removing them too - if I clicked a letter + bksp I'd expect nothing to happen, not a letter to be replaced.
+                Text = Text.Remove(Text.Length - 1);
+        }
     }
 }

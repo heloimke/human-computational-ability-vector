@@ -16,6 +16,7 @@ public class MainMenu : Session
 
     Clickable testButton;
     InputBox testxtBox; //tessckssts.. textst. tec tex teckstst tex.... :thinking:
+    InputBox leftJustified;
 
     string ClickExposureExample = "Clickable State Exposure Location";
     
@@ -35,7 +36,16 @@ public class MainMenu : Session
             MenuStimuli.MenuResources.FindGraphicalStimulus("Testxt Box Left Cap"),
             MenuStimuli.MenuResources.FindGraphicalStimulus("Testxt Box Right Cap"),
             MenuStimuli.MenuResources.FindGraphicalStimulus("Testxt Box Middle"),
-            0.035f, 0.035f, 1f, 0.1f, new Vector2(0, -0.5f), false
+            MenuStimuli.MenuResources.FindGraphicalStimulus("Testxt Cursor"),
+            0.035f, 0.035f, 0.01f, 1f, 0.1f, new Vector2(0, -0.5f), false, LeftJustify: false, PlaceholderText: "Click me and start typing!"
+        );
+
+        leftJustified = new InputBox("Left Box", MenuStimuli.MenuResources.FindFontInstance("Input"), 0.6f,
+            MenuStimuli.MenuResources.FindGraphicalStimulus("Testxt Box Left Cap"),
+            MenuStimuli.MenuResources.FindGraphicalStimulus("Testxt Box Right Cap"),
+            MenuStimuli.MenuResources.FindGraphicalStimulus("Testxt Box Middle"),
+            MenuStimuli.MenuResources.FindGraphicalStimulus("Testxt Cursor"),
+            0.035f, 0.035f, 0.01f, 1f, 0.1f, new Vector2(0, -0.7f), false, LeftJustify: true, PlaceholderText: "Typing is left justified here."
         );
     }
 
@@ -48,6 +58,7 @@ public class MainMenu : Session
         Option.Draw(ref batch, MouseString, FullSpace(0, 0.2f), scale: SizeRatio * 0.8f);
         testButton.Draw(ref batch);
         testxtBox.Draw(ref batch);
+        leftJustified.Draw(ref batch);
     }
 
     public void ExitBehaviour()
@@ -66,6 +77,7 @@ public class MainMenu : Session
         CurrentPosition = mouse.ScrollWheelValue;
         testButton.Update(gameTime, FromFullSpace(mouse.X, mouse.Y), mouse.LeftButton == ButtonState.Pressed || Keyboard.GetState().IsKeyDown(Keys.Space));
         testxtBox.Update(gameTime, FromFullSpace(mouse.X, mouse.Y), mouse.LeftButton == ButtonState.Pressed, mouse.RightButton == ButtonState.Pressed);
+        leftJustified.Update(gameTime, FromFullSpace(mouse.X, mouse.Y), mouse.LeftButton == ButtonState.Pressed, mouse.RightButton == ButtonState.Pressed);
         return this;
     }
 }

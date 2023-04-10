@@ -64,6 +64,11 @@ public class InputBox
 
     public bool LeftJustify;
 
+    public Drawable Cursor;
+    public float CursorWidth;
+    public TimeSpan CursorFlickerCycle;
+    //TODO: Make flicker colour calculation helper utility.
+
     public tStimuli Font                    { get; protected set; }
     public float FontRelativeHeight         { get; protected set; }
     public Vector2 TestStringMeasurement    { get; protected set; }
@@ -93,15 +98,17 @@ public class InputBox
     public bool Active              { get; protected set; }
     public InputState State         { get; protected set; }
 
+    public string PlaceholderText;
     public string Text  { get; protected set; }
     public int Position { get; protected set; }
 
     public InputBox(
         string ShortCode, tStimuli Font, float FontRelativeHeight,
-        Drawable BoxLeftCap, Drawable BoxRightCap, Drawable BoxMiddle, 
-        float BoxLeftCapWidth, float BoxRightCapWidth, 
+        Drawable BoxLeftCap, Drawable BoxRightCap, Drawable BoxMiddle, Drawable Cursor,
+        float BoxLeftCapWidth, float BoxRightCapWidth, float CursorWidth,
         float Width, float Height, Vector2 Location, bool ExamSpace = true, bool LeftJustify = true, 
-        Color? ActiveColor = null, Color? HoverColor = null, Color? NormalColor = null
+        Color? ActiveColor = null, Color? HoverColor = null, Color? NormalColor = null, TimeSpan? CursorFlickerCycle = null,
+        string PlaceholderText = ""
     ) {
         this.ShortCode = ShortCode;
 
@@ -114,6 +121,10 @@ public class InputBox
         this.BoxRightCap        = BoxRightCap;
         this.BoxLeftCapWidth    = BoxLeftCapWidth;
         this.BoxRightCapWidth   = BoxRightCapWidth;
+        
+        this.Cursor             = Cursor;
+        this.CursorWidth        = CursorWidth;
+        this.CursorFlickerCycle = CursorFlickerCycle ?? new TimeSpan(10 * 1000 * 1000);
 
         this.Width      = Width;
         this.Height     = Height;
@@ -139,8 +150,10 @@ public class InputBox
 
         TestStringMeasurement = this.Font.content.MeasureString(MeasurementString);
 
-        Text     = "Test input text `#@1 except too long";
+        Text     = "";
         Position = 0;
+
+        this.PlaceholderText = PlaceholderText;
     }
 
     protected virtual bool CalculateIntersection(Vector2 cursor)
@@ -174,6 +187,8 @@ public class InputBox
         float transformedLeftCapWidth  = BoxLeftCapWidth  * SizeRatio * (ExamSpace ? IdealSquare : IdealSquare / 2f);
         float transformedRightCapWidth = BoxRightCapWidth * SizeRatio * (ExamSpace ? IdealSquare : IdealSquare / 2f);
 
+        float transformedCursorWidth = CursorWidth  * SizeRatio * (ExamSpace ? IdealSquare : IdealSquare / 2f);
+
         int MiddleWidth = (int)Math.Ceiling(transformedWidth - transformedLeftCapWidth - transformedRightCapWidth);
 
         BoxLeftCap.Draw(ref batch, new Rectangle(
@@ -203,6 +218,8 @@ public class InputBox
             (Active) ? ActiveColor : (MouseOver) ? HoverColor : NormalColor
         ); //NOTE: Should this be disable-able? - It's overridable.
 
+        //TODO: Allow right justification and precompute justification and buffer ?= placeholder here.
+
         Vector2 TextMeasurement = this.Font.content.MeasureString(Text);
         float CalculatedTextWidth = TextMeasurement.X * FontRelativeHeight * (transformedHeight / TestStringMeasurement.Y);
         string Buffer = Text;
@@ -216,12 +233,22 @@ public class InputBox
         
         //TODO: Calculate Shift as well ^ for cursor position.
 
-        Font.Draw(ref batch, Buffer, new Vector2(
-                (int)(transformedPosition.X + (LeftJustify ? transformedLeftCapWidth - ((transformedWidth - CalculatedTextWidth) / 2f)  : 0)), 
+        //TODO: Allow left justifcation of placeholder text & Check overflow.
+        Font.Draw(ref batch, (Active) ? Buffer : (Buffer == "") ? PlaceholderText : Buffer, new Vector2(
+                (int)(transformedPosition.X + (LeftJustify && (Active || Buffer != "") ? transformedLeftCapWidth - ((transformedWidth - CalculatedTextWidth) / 2f)  : 0)), 
                 (int)(transformedPosition.Y)
             ),
             scale: FontRelativeHeight * (transformedHeight / TestStringMeasurement.Y)
         );
+        
+        if(Active) Cursor.Draw(ref batch, new Rectangle(
+                (int)(transformedPosition.X + (LeftJustify ? CalculatedTextWidth - (transformedWidth / 2f) + transformedLeftCapWidth : CalculatedTextWidth / 2)), 
+                (int)(transformedPosition.Y - ((transformedHeight * FontRelativeHeight) / 2f)), 
+
+                (int)(transformedCursorWidth), (int)(transformedHeight * FontRelativeHeight)
+            ), 
+            Color.White //TODO: Make flicker.
+        ); //NOTE: Should this be disable-able? - It's overridable.
     }
 
     public virtual void Activate()

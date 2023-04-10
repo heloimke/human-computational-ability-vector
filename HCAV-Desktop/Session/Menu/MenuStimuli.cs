@@ -18,7 +18,8 @@ public static class MenuStimuli
                 new gStimuli(manager, "Placeholders/testclickablegstim", "Test Button"),
                 new gStimuli(manager, "Placeholders/testxtboxleft",      "Testxt Box Left Cap"),
                 new gStimuli(manager, "Placeholders/testxtboxright",     "Testxt Box Right Cap"),
-                new gStimuli(manager, "Placeholders/testxtboxmiddle",    "Testxt Box Middle")
+                new gStimuli(manager, "Placeholders/testxtboxmiddle",    "Testxt Box Middle"),
+                new gStimuli(manager, "Placeholders/testxtcursor",       "Testxt Cursor")
             },
             new List<aStimuli>(),
             new List<tStimuli> {

@@ -27,7 +27,7 @@ public class InputBox
 
     public delegate void InputPositionalEvent(InputBox sender, int position);
     public delegate void InputCharacterEvent(InputBox sender, int position, char character);
-    public delegate void InputCharactersEvent(InputBox sender, int start, int stop, char[] characters);
+    public delegate void InputCharactersEvent(InputBox sender, int start, int stop, string characters);
 
     public event InputSimpleEvent Activated;
     public event InputSimpleTimedEvent Deactivated;
@@ -101,6 +101,14 @@ public class InputBox
     public Color HoverColor;
     public Color NormalColor;
 
+    public TimeSpan TypingTimeSpan;
+    public TimeSpan DeletingTimeSpan;
+    public TimeSpan MovingTimeSpan;
+
+    public TimeSpan TypingLastTime      { get; protected set; }
+    public TimeSpan DeletingLastTime    { get; protected set; }
+    public TimeSpan MovingLastTime      { get; protected set; }
+
     public TimeSpan activeTime      { get; protected set; }
     public TimeSpan idleTime        { get; protected set; }
     public TimeSpan typingTime      { get; protected set; }
@@ -118,12 +126,17 @@ public class InputBox
     public string Text  { get; protected set; }
     public int Position { get; protected set; }
 
+    public bool ConsideredTyping(TimeSpan totalElapsedTime)   => (totalElapsedTime < TypingLastTime   + TypingTimeSpan);
+    public bool ConsideredDeleting(TimeSpan totalElapsedTime) => (totalElapsedTime < DeletingLastTime + DeletingTimeSpan); 
+    public bool ConsideredMoving(TimeSpan totalElapsedTime)   => (totalElapsedTime < MovingLastTime   + MovingTimeSpan);
+
     public InputBox(
         string ShortCode, tStimuli Font, float FontRelativeHeight,
         Drawable BoxLeftCap, Drawable BoxRightCap, Drawable BoxMiddle, Drawable Cursor,
         float BoxLeftCapWidth, float BoxRightCapWidth, float CursorWidth,
         float Width, float Height, Vector2 Location, bool ExamSpace = true, bool LeftJustify = true, 
         Color? ActiveColor = null, Color? HoverColor = null, Color? NormalColor = null, TimeSpan? CursorFlickerCycle = null,
+        TimeSpan? TypingTimeSpan = null, TimeSpan? DeletingTimeSpan = null, TimeSpan? MovingTimeSpan = null,
         string PlaceholderText = ""
     ) {
         this.ShortCode = ShortCode;
@@ -150,6 +163,14 @@ public class InputBox
         this.ActiveColor = ActiveColor  ?? new Color(210, 210, 230);
         this.HoverColor  = HoverColor   ?? new Color(230, 230, 240);
         this.NormalColor = NormalColor  ?? Color.White;
+
+        this.TypingTimeSpan     = TypingTimeSpan    ?? new TimeSpan(10 * 1000 * 300); //300ms between characters
+        this.DeletingTimeSpan   = DeletingTimeSpan  ?? new TimeSpan(10 * 1000 * 500); //500ms between deletions
+        this.MovingTimeSpan     = MovingTimeSpan    ?? new TimeSpan(10 * 1000 * 400); //400ms between movements
+
+        TypingLastTime   = new TimeSpan(0);
+        DeletingLastTime = new TimeSpan(0);
+        MovingLastTime   = new TimeSpan(0);
 
         activeTime   = new TimeSpan(0);
         idleTime     = new TimeSpan(0);
@@ -331,18 +352,39 @@ public class InputBox
 
     public virtual void Activate()
     {
-        Active = true;
+        if(Active) return; //Already active!
 
-        //TODO: Signals.
-        //NOTE: Remember handle already activated case!
+        Activated?.Invoke(this);
+        Active  = true;
+        State   = InputState.Idle;
+
+        //Signals for idling will be handled in the Update state machine.
     }
 
-    public virtual void Deactivate()
+    public virtual void Deactivate(TimeSpan totalElapsedTime)
     {
+        if(!Active) return; //Already deactivated!
+
+        Deactivated?.Invoke(this, activeTime);
         Active = false;
 
-        //TODO: Signals.
-        //NOTE: Remember handle already deactivated case!
+        if(ConsideredTyping(totalElapsedTime))   StoppedTyping?.Invoke(this, typingTime);
+        if(ConsideredDeleting(totalElapsedTime)) FinishedDeleting?.Invoke(this, deletingTime);
+        if(ConsideredMoving(totalElapsedTime))   FinishedMoving?.Invoke(this, movingTime);
+
+        if(State == InputState.Idle) FinishedIdling?.Invoke(this, idleTime);
+
+        TypingLastTime      = new TimeSpan(0);
+        DeletingLastTime    = new TimeSpan(0);
+        MovingLastTime      = new TimeSpan(0);
+
+        activeTime      = new TimeSpan(0);
+        idleTime        = new TimeSpan(0);
+        typingTime      = new TimeSpan(0);
+        deletingTime    = new TimeSpan(0);
+        movingTime      = new TimeSpan(0);
+
+        State = InputState.Inactive;
     }
 
     //NOTE: When writing docs - include tips to order states like I have, most likely states first.
@@ -358,7 +400,7 @@ public class InputBox
         if(clickDown)
         {
             if(MouseOver) Activate();
-            else Deactivate();
+            else Deactivate(time.TotalGameTime);
         }
 
         //TODO: Signal clear.
@@ -371,8 +413,6 @@ public class InputBox
         PreviousKeyboardState = nextState;
         //We don't need to keep the previous state, assign [previous = next] up here to stay concice.
 
-        //TODO: Implement all keyboard interaction behaviours + Signals.
-        //Very basic behaviour placeholder:
         char[] characters = keyPresses.KeyChars(nextState.IsKeyDown(Keys.LeftShift) || nextState.IsKeyDown(Keys.RightShift), nextState.CapsLock);
 
         if(nextState.IsKeyDown(Keys.LeftControl) || nextState.IsKeyDown(Keys.RightControl))
@@ -381,78 +421,230 @@ public class InputBox
             {
                 if(keyPresses.Contains(Keys.Back) || keyPresses.Contains(Keys.Delete))
                 {
-                    //TODO Signals.
                     Text = ""; //Delete everything.
+                    DeletingLastTime = time.TotalGameTime;
+                    ClearedInput?.Invoke(this);
                 }
                 if(keyPresses.Contains(Keys.Left))
                 {
-                    //TODO Signals.
                     Position = 0;
+                    MovingLastTime = time.TotalGameTime;
+                    MovedCursor?.Invoke(this, Position);
                 }
                 if(keyPresses.Contains(Keys.Right))
                 {
-                    //TODO Signals.
                     Position = Text.Length;
+                    MovingLastTime = time.TotalGameTime;
+                    MovedCursor?.Invoke(this, Position);
                 }
             }
             else
             {
-                if(keyPresses.Contains(Keys.Back))
+                if(keyPresses.Contains(Keys.Back) && Text.Length != 0)
                 {
                     //TODO Signals.
-                    if(Text.Length != 0) Text = Text.TrimSmart();
+                    Text = Text.Substring(0, Position).TrimSmart() + Text.Substring(Position);
+                    //OH I need to return the total jump length.
                 }
-                if(keyPresses.Contains(Keys.Delete))
+                if(keyPresses.Contains(Keys.Delete) && Position != Text.Length)
                 {
                     //TODO Signals.
-                    if(Position != Text.Length) Text = Text.Substring(0, Position) + Text.Substring(Position + Text.Substring(Position + 1).SeekFwdSmart());
+                    Text = Text.Substring(0, Position) + Text.Substring(Position + Text.Substring(Position + 1).SeekFwdSmart());
                 }
-                if(keyPresses.Contains(Keys.Left))
+                if(keyPresses.Contains(Keys.Left) && Position != 0)
                 {
-                    //TODO Signals.
                     if(Position > 1) Position = Text.Substring(0, Position - 1).SeekBackSmart();
                     if(Position == 1) Position = 0; //catch both else and 1 before end above ^
+                    MovingLastTime = time.TotalGameTime;
+                    MovedCursor?.Invoke(this, Position);
                 }
-                if(keyPresses.Contains(Keys.Right))
+                if(keyPresses.Contains(Keys.Right) && Position != Text.Length)
                 {
-                    //TODO Signals.
-                    if(Position != Text.Length) Position += Text.Substring(Position + 1).SeekFwdSmart();
+                    Position += Text.Substring(Position + 1).SeekFwdSmart();
+                    MovingLastTime = time.TotalGameTime;
+                    MovedCursor?.Invoke(this, Position);
+                }
+            }
+
+            if(characters.Length != 0)
+            {
+                foreach(char c in characters)
+                {
+                    CommandSent?.Invoke(this, c, 
+                        nextState.IsKeyDown(Keys.LeftControl) || nextState.IsKeyDown(Keys.RightControl), 
+                        nextState.IsKeyDown(Keys.LeftAlt) || nextState.IsKeyDown(Keys.RightAlt)
+                    );
                 }
             }
         }
         else
         {
-            //If you're pressing two keys at a time I don't think you could assume an intended order XD
-            foreach(char c in characters)
+            if(characters.Length != 0)
             {
-                if(Position != Text.Length) Text = Text.Substring(0, Position) + c + Text.Substring(Position);//useful for insert! + Text.Substring(Position + 1);
-                else Text += c;
-                Position++;
-            }
+                TypingLastTime = time.TotalGameTime;
 
-            if(keyPresses.Contains(Keys.Back))  //We can add letters before removing them too
-            {                                   //  if I clicked a letter + bksp I'd expect nothing to happen, not a letter to be replaced.
-                //TODO Signals.
-                if(Text.Length != 0)
+                //If you're pressing two keys at a time I don't think you could assume an intended order XD
+                foreach(char c in characters)
                 {
-                    Text = Text.Remove(Position - 1, 1);  
-                    Position--;
+                    if(Position != Text.Length) Text = Text.Substring(0, Position) + c + Text.Substring(Position);//useful for insert! + Text.Substring(Position + 1);
+                    else Text += c;
+                    Position++;
+                    MovedCursor?.Invoke(this, Position);
+                    InputCharacter?.Invoke(this, Position, c);
                 }
             }
 
-            if(keyPresses.Contains(Keys.Delete))
-            {
-                //TODO Signals.
-                if(Position != Text.Length) Text = Text.Remove(Position, 1);
+            if(keyPresses.Contains(Keys.Back) && Text.Length != 0)  //We can add letters before removing them too
+            {                                   //  if I clicked a letter + bksp I'd expect nothing to happen, not a letter to be replaced.
+                DeletedCharacter?.Invoke(this, Position, Text[Position]);
+                Text = Text.Remove(Position - 1, 1);  
+                Position--;
+                DeletingLastTime = time.TotalGameTime;
+                MovedCursor?.Invoke(this, Position);
             }
 
-            if(keyPresses.Contains(Keys.Right)) Position++;
-            if(keyPresses.Contains(Keys.Left))  Position--;
+            if(keyPresses.Contains(Keys.Delete) && Position != Text.Length)
+            {
+                DeletedCharacter?.Invoke(this, Position, Text[Position + 1]);
+                Text = Text.Remove(Position, 1);
+                DeletingLastTime = time.TotalGameTime;
+            }
+
+            if(keyPresses.Contains(Keys.Right))
+            {
+                Position++;
+                MovingLastTime = time.TotalGameTime;
+                MovedCursor?.Invoke(this, Position);
+            }
+            if(keyPresses.Contains(Keys.Left))
+            {
+                Position--;
+                MovingLastTime = time.TotalGameTime;
+                MovedCursor?.Invoke(this, Position);
+            }
         }
 
-        if(keyPresses.Contains(Keys.Home) || keyPresses.Contains(Keys.PageUp))      Position = 0;
-        if(keyPresses.Contains(Keys.End)  || keyPresses.Contains(Keys.PageDown))    Position = Text.Length;
+        if(keyPresses.Contains(Keys.Home) || keyPresses.Contains(Keys.PageUp))
+        {
+            Position = 0;
+            MovingLastTime = time.TotalGameTime;
+            MovedCursor?.Invoke(this, Position);
+        }
+        if(keyPresses.Contains(Keys.End)  || keyPresses.Contains(Keys.PageDown))
+        {
+            Position = Text.Length;
+            MovingLastTime = time.TotalGameTime;
+            MovedCursor?.Invoke(this, Position);
+        }
+
+        if(keyPresses.Contains(Keys.Enter))
+        {
+            CommandSent?.Invoke(this, '\n', 
+                nextState.IsKeyDown(Keys.LeftControl) || nextState.IsKeyDown(Keys.RightControl), 
+                nextState.IsKeyDown(Keys.LeftAlt) || nextState.IsKeyDown(Keys.RightAlt)
+            );
+        }
+
+        if(keyPresses.Contains(Keys.Tab))
+        {
+            CommandSent?.Invoke(this, '\t', 
+                nextState.IsKeyDown(Keys.LeftControl) || nextState.IsKeyDown(Keys.RightControl), 
+                nextState.IsKeyDown(Keys.LeftAlt) || nextState.IsKeyDown(Keys.RightAlt)
+            );
+        }
 
         Position = (Position >= 0) ? (Position <= Text.Length) ? Position : Text.Length : 0;
+
+        bool typing     = ConsideredTyping(time.TotalGameTime);
+        bool deleting   = ConsideredDeleting(time.TotalGameTime);
+        bool moving     = ConsideredMoving(time.TotalGameTime);
+
+        if(typing || deleting || moving)
+        {
+            if(State == InputState.Idle)
+            {
+                FinishedIdling?.Invoke(this, idleTime);
+                idleTime = new TimeSpan(0);
+            }
+        }
+        else
+        {
+            if(State == InputState.Idle)
+            {
+                idleTime += time.ElapsedGameTime;
+                Idling?.Invoke(this, idleTime);
+            }
+            else
+            {
+                StartedIdling?.Invoke(this);
+                idleTime = time.ElapsedGameTime;
+            }
+        }
+
+        //Justification of order; if one is moving, that's is a primary activity, and deleting is a normal part of typing.
+        if(deleting)
+        {
+            State = InputState.Deleting;
+            if(deletingTime.Ticks == 0)
+            {
+                StartedDeleting?.Invoke(this);
+                deletingTime = time.ElapsedGameTime;
+                Deleting?.Invoke(this, deletingTime);
+            }
+            else
+            {
+                deletingTime += time.ElapsedGameTime;
+                Deleting?.Invoke(this, deletingTime);
+            }
+        }
+        else if (deletingTime.Ticks != 0) //We must've JUST stopped.
+        {
+            FinishedDeleting?.Invoke(this, deletingTime);
+            deletingTime = new TimeSpan(0);
+        }   //State should've been changed above.
+
+
+        if(typing)
+        {
+            State = InputState.Typing;
+            if(typingTime.Ticks == 0)
+            {
+                StartedTyping?.Invoke(this);
+                typingTime = time.ElapsedGameTime;
+                Typing?.Invoke(this, typingTime);
+            }
+            else
+            {
+                typingTime += time.ElapsedGameTime;
+                Typing?.Invoke(this, typingTime);
+            }
+        }
+        else if (typingTime.Ticks != 0) //We must've JUST stopped.
+        {
+            StoppedTyping?.Invoke(this, typingTime);
+            typingTime = new TimeSpan(0);
+        }   //State should've been changed above.
+
+
+        if(moving)
+        {
+            State = InputState.Moving;
+            if(typingTime.Ticks == 0)
+            {
+                StartedMoving?.Invoke(this);
+                movingTime = time.ElapsedGameTime;
+                Moving?.Invoke(this, movingTime);
+            }
+            else
+            {
+                movingTime += time.ElapsedGameTime;
+                Moving?.Invoke(this, movingTime);
+            }
+        }
+        else if (movingTime.Ticks != 0) //We must've JUST stopped.
+        {
+            FinishedMoving?.Invoke(this, movingTime);
+            movingTime = new TimeSpan(0);
+        }   //State should've been changed above.
     }
 }

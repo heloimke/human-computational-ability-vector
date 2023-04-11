@@ -22,7 +22,7 @@ public class InputBox
     public delegate void InputSimpleEvent(InputBox sender);
     public delegate void InputSimpleTimedEvent(InputBox sender, TimeSpan duration);
 
-    //Enter -> code '\n' | Tab -> code '\t'
+    //Enter -> code '\n' | Tab -> code '\t' | Space -> code ' '
     public delegate void InputCommandEvent(InputBox sender, char code, bool ctrl = true, bool alt = false);
 
     public delegate void InputPositionalEvent(InputBox sender, int position);
@@ -312,7 +312,6 @@ public class InputBox
             }
         }
 
-        //TODO: Allow left justifcation of placeholder text & Check overflow.
         Font.Draw(ref batch, TextBuffer, new Vector2(
                 (int)(transformedPosition.X + (LeftJustify ? transformedLeftCapWidth - ((transformedWidth - CalculatedTextWidth) / 2f)  : 0)), 
                 (int)(transformedPosition.Y)
@@ -327,7 +326,7 @@ public class InputBox
                 (int)(transformedCursorWidth), (int)(transformedHeight * FontRelativeHeight)
             ), 
             CursorColor
-        ); //NOTE: Should this be disable-able? - It's overridable.
+        );
     }
 
     public virtual void Activate()
@@ -380,10 +379,20 @@ public class InputBox
         {
             if(nextState.IsKeyDown(Keys.LeftAlt) || nextState.IsKeyDown(Keys.RightAlt))
             {
-                if(keyPresses.Contains(Keys.Back))
+                if(keyPresses.Contains(Keys.Back) || keyPresses.Contains(Keys.Delete))
                 {
                     //TODO Signals.
                     Text = ""; //Delete everything.
+                }
+                if(keyPresses.Contains(Keys.Left))
+                {
+                    //TODO Signals.
+                    Position = 0;
+                }
+                if(keyPresses.Contains(Keys.Right))
+                {
+                    //TODO Signals.
+                    Position = Text.Length;
                 }
             }
             else
@@ -391,23 +400,58 @@ public class InputBox
                 if(keyPresses.Contains(Keys.Back))
                 {
                     //TODO Signals.
-
-                    Text = Text.Remove(Text.Length - 1);               //Remove at least one char, in case of special char i.e. [, (, =, etc.
-                    Text = Text.TrimEnd();                             //Seek back to previous block through whitespace.
-                    Text = Text.TrimEnd(Extensions.TrimSeekCtrlList);  //Remove all characters considered "content"
+                    if(Text.Length != 0) Text = Text.TrimSmart();
+                }
+                if(keyPresses.Contains(Keys.Delete))
+                {
+                    //TODO Signals.
+                    if(Position != Text.Length) Text = Text.Substring(0, Position) + Text.Substring(Position + Text.Substring(Position + 1).SeekFwdSmart());
+                }
+                if(keyPresses.Contains(Keys.Left))
+                {
+                    //TODO Signals.
+                    if(Position > 1) Position = Text.Substring(0, Position - 1).SeekBackSmart();
+                    if(Position == 1) Position = 0; //catch both else and 1 before end above ^
+                }
+                if(keyPresses.Contains(Keys.Right))
+                {
+                    //TODO Signals.
+                    if(Position != Text.Length) Position += Text.Substring(Position + 1).SeekFwdSmart();
                 }
             }
         }
         else
         {
-            foreach(char c in characters) Text += c;    //If you're pressing two keys at a time I don't think you could assume an intended order XD
-            if(keyPresses.Contains(Keys.Back))          //We can add letters before removing them too - 
-                Text = Text.Remove(Text.Length - 1);    //  if I clicked a letter + bksp I'd expect nothing to happen, not a letter to be replaced.
+            //If you're pressing two keys at a time I don't think you could assume an intended order XD
+            foreach(char c in characters)
+            {
+                if(Position != Text.Length) Text = Text.Substring(0, Position) + c + Text.Substring(Position);//useful for insert! + Text.Substring(Position + 1);
+                else Text += c;
+                Position++;
+            }
 
-            Position += characters.Length;
+            if(keyPresses.Contains(Keys.Back))  //We can add letters before removing them too
+            {                                   //  if I clicked a letter + bksp I'd expect nothing to happen, not a letter to be replaced.
+                //TODO Signals.
+                if(Text.Length != 0)
+                {
+                    Text = Text.Remove(Position - 1, 1);  
+                    Position--;
+                }
+            }
+
+            if(keyPresses.Contains(Keys.Delete))
+            {
+                //TODO Signals.
+                if(Position != Text.Length) Text = Text.Remove(Position, 1);
+            }
+
             if(keyPresses.Contains(Keys.Right)) Position++;
             if(keyPresses.Contains(Keys.Left))  Position--;
         }
+
+        if(keyPresses.Contains(Keys.Home) || keyPresses.Contains(Keys.PageUp))      Position = 0;
+        if(keyPresses.Contains(Keys.End)  || keyPresses.Contains(Keys.PageDown))    Position = Text.Length;
 
         Position = (Position >= 0) ? (Position <= Text.Length) ? Position : Text.Length : 0;
     }

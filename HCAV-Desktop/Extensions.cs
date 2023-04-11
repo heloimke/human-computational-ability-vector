@@ -14,9 +14,55 @@ public static class Extensions
         'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
         'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
         '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
-        '~', '`', '!', '@', '#', '$', '%', '^', '&', '*',
-        '.', ',', '_', '?', ')', ']', '}', '\''
+        '~', '?', '!', '@', '#', '$', '%', '^', '&', '*',
+        '.', ',', '_', '>', ')', ']', '}', '\'', ':', ';'
     };
+
+    public readonly static char[] TrimSeekCtrlStart = {
+        ' ', '-', '=', '+', '[', '{', '(', '<', '\\', '/', '|'
+    };
+
+    public readonly static char[] TrimSeekCtrlStop = {
+        ' ', '-', '=', '+', ']', '}', ')', '>', '\\', '/', '|'
+    };
+
+    public static int ClampZero(this int input) => (input > 0) ? input : 0;
+
+    public static string TrimSmart(this string input) => input.Remove(input.Length - 1).TrimEnd().TrimEnd(TrimSeekCtrlList);
+    /* --------------------------------------------------------------------------------------------------------------------------
+     * Original code in temporary prototype behaviour of inputbox with explanation:
+     *  Text = Text.Remove(Text.Length - 1);               //Remove at least one char, in case of special char i.e. [, (, =, etc.
+     *  Text = Text.TrimEnd();                             //Seek back to previous block through whitespace.
+     *  Text = Text.TrimEnd(Extensions.TrimSeekCtrlList);  //Remove all characters considered "content"
+     * -------------------------------------------------------------------------------------------------------------------------- */
+
+     public static int SeekBackSmart(this string input) => input.LastIndexOfAny(TrimSeekCtrlList, input.LastIndexOfAny(TrimSeekCtrlStart).ClampZero()) + 1;
+     //Seek to the spot directly in front of a character that indicates the start of something.
+     //i.e. from "hello world|" -> "hello |world" or "yesterday (or| the day before)" -> "yesterday (|or the day before)" 
+     //top layer is to jump over non-content blocks i.e. "double  spaces" or "((((bracket chain))))", inner layer is to skip to first non-content instance.
+
+     public static int SeekFwdSmart(this string input)
+     {
+        int bestIndex = -1;
+        foreach(char c in TrimSeekCtrlStop)
+        {
+            int idx = input.IndexOf(c, 0, (bestIndex < 0) ? input.Length : bestIndex);
+            if (idx >= 0) bestIndex = idx;
+        }
+
+        if(bestIndex == -1) return input.Length + 1;
+
+        int firstContent = -1;
+        foreach(char c in TrimSeekCtrlList)
+        {
+            int idx = input.IndexOf(c, bestIndex, (firstContent < 0) ? input.Length - bestIndex : firstContent - bestIndex);
+            if(idx >= 0) firstContent = idx;
+            if(idx == bestIndex + 1) break;
+        }
+
+        if(firstContent == -1) return input.Length + 1;
+        return firstContent + 1;
+     }
 
     public static Keys[] KeyDelta(this KeyboardState next, KeyboardState previous)
     {

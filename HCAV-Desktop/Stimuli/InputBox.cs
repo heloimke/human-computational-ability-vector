@@ -201,8 +201,8 @@ public class InputBox
         float transformedHeight = Height * SizeRatio * (ExamSpace ? IdealSquare : IdealSquare / 2f);
         float transformedWidth  = Width  * SizeRatio * (ExamSpace ? IdealSquare : IdealSquare / 2f);
 
-        float transformedLeftCapWidth  = BoxLeftCapWidth  * SizeRatio * (ExamSpace ? IdealSquare : IdealSquare / 2f);
-        float transformedRightCapWidth = BoxRightCapWidth * SizeRatio * (ExamSpace ? IdealSquare : IdealSquare / 2f);
+        int transformedLeftCapWidth  = (int)Math.Ceiling(BoxLeftCapWidth  * SizeRatio * (ExamSpace ? IdealSquare : IdealSquare / 2f));
+        int transformedRightCapWidth = (int)Math.Ceiling(BoxRightCapWidth * SizeRatio * (ExamSpace ? IdealSquare : IdealSquare / 2f));
 
         float transformedCursorWidth = CursorWidth  * SizeRatio * (ExamSpace ? IdealSquare : IdealSquare / 2f);
 

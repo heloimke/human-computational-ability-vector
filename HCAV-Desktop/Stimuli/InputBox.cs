@@ -22,6 +22,7 @@ public class InputBox
     public delegate void InputSimpleEvent(InputBox sender);
     public delegate void InputSimpleTimedEvent(InputBox sender, TimeSpan duration);
 
+    //Enter -> code '\n' | Tab -> code '\t'
     public delegate void InputCommandEvent(InputBox sender, char code, bool ctrl = true, bool alt = false);
 
     public delegate void InputPositionalEvent(InputBox sender, int position);
@@ -86,6 +87,7 @@ public class InputBox
     public tStimuli Font                    { get; protected set; }
     public float FontRelativeHeight         { get; protected set; }
     public Vector2 TestStringMeasurement    { get; protected set; }
+    public float CharWidth                  { get; protected set; }
     public const string MeasurementString = "`Test|y@%^&*,";
 
     public float Width;
@@ -163,6 +165,7 @@ public class InputBox
         State       = InputState.Inactive;
 
         TestStringMeasurement = this.Font.content.MeasureString(MeasurementString);
+        CharWidth             = TestStringMeasurement.X / (float)MeasurementString.Length;
 
         Text     = "";
         Position = 0;
@@ -234,29 +237,91 @@ public class InputBox
 
         //TODO: Allow right justification and precompute justification and buffer ?= placeholder here.o
 
-        Vector2 TextMeasurement = this.Font.content.MeasureString(Text);
-        float CalculatedTextWidth = TextMeasurement.X * FontRelativeHeight * (transformedHeight / TestStringMeasurement.Y);
-        string Buffer = Text;
-        if(CalculatedTextWidth > MiddleWidth)
+        string TextBuffer;
+        float CursorOffset;
+
+        Vector2 TextMeasurement;
+        float CalculatedTextWidth;
+
+        if(!Active && Text == "")
         {
-            int AcceptableCharacters = (int)Math.Floor(((MiddleWidth / CalculatedTextWidth) * Text.Length));
-            Buffer = "..." + Text.Substring(Text.Length - AcceptableCharacters + 3, AcceptableCharacters - 3);
-            TextMeasurement = this.Font.content.MeasureString(Buffer);
-            CalculatedTextWidth = (TextMeasurement.X * FontRelativeHeight * (transformedHeight / TestStringMeasurement.Y));
+            TextBuffer = PlaceholderText;
+            CursorOffset = 0; //Irrelevant.
+
+            TextMeasurement = this.Font.content.MeasureString(PlaceholderText);
+            CalculatedTextWidth = TextMeasurement.X * FontRelativeHeight * (transformedHeight / TestStringMeasurement.Y);
+
+            if(CalculatedTextWidth > MiddleWidth)
+            {
+                int AcceptableCharacters = (int)Math.Floor(((MiddleWidth / CalculatedTextWidth) * PlaceholderText.Length));
+                TextBuffer = PlaceholderText.Substring(0, AcceptableCharacters - 3) + "...";
+            }
         }
-        
-        //TODO: Calculate Shift as well ^ for cursor position.
+        else
+        {
+            TextMeasurement = this.Font.content.MeasureString(Text);
+            CalculatedTextWidth = TextMeasurement.X * FontRelativeHeight * (transformedHeight / TestStringMeasurement.Y);
+
+            if(CalculatedTextWidth > MiddleWidth)
+            {
+                int AcceptableCharacters = (int)Math.Floor(((MiddleWidth / CalculatedTextWidth) * Text.Length));
+
+                //Have to clip right
+                if(Text.Length - Position > Math.Ceiling(AcceptableCharacters / 2f))
+                {
+                    //Also have to clip left - we're in the middle
+                    if(Position > Math.Floor(AcceptableCharacters / 2f))
+                    {
+                        TextBuffer = ".." + Text.Substring(Position - (AcceptableCharacters / 2) + 2, AcceptableCharacters - 4) + "..";
+                        TextMeasurement = this.Font.content.MeasureString(TextBuffer);
+                        CalculatedTextWidth = (TextMeasurement.X * FontRelativeHeight * (transformedHeight / TestStringMeasurement.Y));
+                        CursorOffset = (LeftJustify 
+                            ? ((CalculatedTextWidth - transformedWidth) / 2f) + transformedLeftCapWidth
+                            : (AcceptableCharacters % 2) == 0 ? 0 : -(CalculatedTextWidth / AcceptableCharacters) / 2f
+                        );  //In the case of odd character length - it will be exactly half a character to the left.
+                    }
+                    else //We're at the beginning
+                    {
+                        TextBuffer = Text.Substring(0, AcceptableCharacters - 3) + "...";
+                        TextMeasurement = this.Font.content.MeasureString(TextBuffer);
+                        CalculatedTextWidth = (TextMeasurement.X * FontRelativeHeight * (transformedHeight / TestStringMeasurement.Y));
+                        CursorOffset = (LeftJustify 
+                            ? (CalculatedTextWidth * (Position / (float)AcceptableCharacters)) - (transformedWidth / 2f) + transformedLeftCapWidth
+                            : (CalculatedTextWidth * (Position / (float)AcceptableCharacters)) - (CalculatedTextWidth / 2f)
+                        );
+                    }
+                }
+                else //We're at the end, if it's too long, and there's not too many on our RHS
+                {
+                    TextBuffer = "..." + Text.Substring(Text.Length - AcceptableCharacters + 3, AcceptableCharacters - 3);
+                    TextMeasurement = this.Font.content.MeasureString(TextBuffer);
+                    CalculatedTextWidth = (TextMeasurement.X * FontRelativeHeight * (transformedHeight / TestStringMeasurement.Y));
+                    CursorOffset = (LeftJustify 
+                        ? (CalculatedTextWidth * ((AcceptableCharacters - (Text.Length - Position)) / (float)AcceptableCharacters)) - (transformedWidth / 2f) + transformedLeftCapWidth 
+                        : (CalculatedTextWidth * ((AcceptableCharacters - (Text.Length - Position)) / (float)AcceptableCharacters)) - (CalculatedTextWidth / 2f)
+                    );
+                }
+            }
+            else
+            {
+                TextBuffer = Text;
+                CursorOffset = (LeftJustify 
+                    ? (CalculatedTextWidth * (Position / (float)Text.Length)) - (transformedWidth / 2f) + transformedLeftCapWidth 
+                    : (CalculatedTextWidth * (Position / (float)Text.Length)) - (CalculatedTextWidth / 2f)
+                );
+            }
+        }
 
         //TODO: Allow left justifcation of placeholder text & Check overflow.
-        Font.Draw(ref batch, (Active) ? Buffer : (Buffer == "") ? PlaceholderText : Buffer, new Vector2(
-                (int)(transformedPosition.X + (LeftJustify && (Active || Buffer != "") ? transformedLeftCapWidth - ((transformedWidth - CalculatedTextWidth) / 2f)  : 0)), 
+        Font.Draw(ref batch, TextBuffer, new Vector2(
+                (int)(transformedPosition.X + (LeftJustify ? transformedLeftCapWidth - ((transformedWidth - CalculatedTextWidth) / 2f)  : 0)), 
                 (int)(transformedPosition.Y)
             ),
             scale: FontRelativeHeight * (transformedHeight / TestStringMeasurement.Y)
         );
         
         if(Active) Cursor.Draw(ref batch, new Rectangle(
-                (int)(transformedPosition.X + (LeftJustify ? CalculatedTextWidth - (transformedWidth / 2f) + transformedLeftCapWidth : CalculatedTextWidth / 2)), 
+                (int)(transformedPosition.X + CursorOffset - (transformedCursorWidth / 2f)), 
                 (int)(transformedPosition.Y - ((transformedHeight * FontRelativeHeight) / 2f)), 
 
                 (int)(transformedCursorWidth), (int)(transformedHeight * FontRelativeHeight)
@@ -308,7 +373,7 @@ public class InputBox
         //We don't need to keep the previous state, assign [previous = next] up here to stay concice.
 
         //TODO: Implement all keyboard interaction behaviours + Signals.
-        //Very basic behaviour placeholder
+        //Very basic behaviour placeholder:
         char[] characters = keyPresses.KeyChars(nextState.IsKeyDown(Keys.LeftShift) || nextState.IsKeyDown(Keys.RightShift), nextState.CapsLock);
 
         if(nextState.IsKeyDown(Keys.LeftControl) || nextState.IsKeyDown(Keys.RightControl))
@@ -328,16 +393,22 @@ public class InputBox
                     //TODO Signals.
 
                     Text = Text.Remove(Text.Length - 1);               //Remove at least one char, in case of special char i.e. [, (, =, etc.
-                    Text = Text.TrimEnd();                             //Seek back to previous block.
-                    Text = Text.TrimEnd(Extensions.TrimSeekCtrlList);  //Remove all characters considered "content" 
+                    Text = Text.TrimEnd();                             //Seek back to previous block through whitespace.
+                    Text = Text.TrimEnd(Extensions.TrimSeekCtrlList);  //Remove all characters considered "content"
                 }
             }
         }
         else
         {
             foreach(char c in characters) Text += c;    //If you're pressing two keys at a time I don't think you could assume an intended order XD
-            if(keyPresses.Contains(Keys.Back))          //We can add letters before removing them too - if I clicked a letter + bksp I'd expect nothing to happen, not a letter to be replaced.
-                Text = Text.Remove(Text.Length - 1);
+            if(keyPresses.Contains(Keys.Back))          //We can add letters before removing them too - 
+                Text = Text.Remove(Text.Length - 1);    //  if I clicked a letter + bksp I'd expect nothing to happen, not a letter to be replaced.
+
+            Position += characters.Length;
+            if(keyPresses.Contains(Keys.Right)) Position++;
+            if(keyPresses.Contains(Keys.Left))  Position--;
         }
+
+        Position = (Position >= 0) ? (Position <= Text.Length) ? Position : Text.Length : 0;
     }
 }

@@ -78,6 +78,8 @@ public class MainMenu : Session
         testButton.Update(gameTime, FromFullSpace(mouse.X, mouse.Y), mouse.LeftButton == ButtonState.Pressed || Keyboard.GetState().IsKeyDown(Keys.Space));
         testxtBox.Update(gameTime, FromFullSpace(mouse.X, mouse.Y), mouse.LeftButton == ButtonState.Pressed, mouse.RightButton == ButtonState.Pressed);
         leftJustified.Update(gameTime, FromFullSpace(mouse.X, mouse.Y), mouse.LeftButton == ButtonState.Pressed, mouse.RightButton == ButtonState.Pressed);
+        testxtBox.Width = (float)(1f * (((int)gameTime.TotalGameTime.TotalSeconds % 5) / 5f)) + 0.5f;
+        testxtBox.Height = (float)(0.04f * (((int)gameTime.TotalGameTime.TotalSeconds % 5) / 5f)) + 0.07f;
         return this;
     }
 }
